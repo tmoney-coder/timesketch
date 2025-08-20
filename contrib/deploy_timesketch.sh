@@ -198,7 +198,7 @@ fi
 
 if [ -n "$USER_NAME" ] && [ -n "$USER_PASSWORD" ]; then
   echo "Creating user: $USER_NAME"
-  docker compose exec timesketch-web tsctl add-user -u "$USER_NAME" --password "$USER_PASSWORD" && echo "user created"
+  docker compose exec timesketch-web tsctl create-user "$USER_NAME" --password "$USER_PASSWORD" && echo "user created"
 elif [ -z "$SKIP_CREATE_USER" ]; then
   read -p "Would you like to create a new timesketch user? [y/N]" CREATE_USER
   if [ "$CREATE_USER" != "${CREATE_USER#[Yy]}" ] ;then
