@@ -195,7 +195,9 @@ else
   echo
   exit
 fi
-
+echo "Sleeping to ensure timesketch is fully up."
+sleep 300
+echo "Creating user now."
 if [ -n "$USER_NAME" ] && [ -n "$USER_PASSWORD" ]; then
   echo "Creating user: $USER_NAME"
   docker compose exec timesketch-web tsctl create-user "$USER_NAME" --password "$USER_PASSWORD" && echo "user created"
