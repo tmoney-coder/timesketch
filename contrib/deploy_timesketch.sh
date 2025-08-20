@@ -154,8 +154,8 @@ if [ "$START_CONTAINER" != "${START_CONTAINER#[Yy]}" ] ;then # this grammar (the
   SECONDS=0
   while true; do
     # Suppress errors in case container is not yet created or health check not configured
-    HEALTH_STATUS=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}starting{{end}}' timesketch-web 2>/dev/null || echo "checking")
-    if [ "$HEALTH_STATUS" = "healthy" ]; then
+    HEALTH_STATUS=$(docker inspect -f '{{if eq .State.Status "running"}}{{.State.Status}}{{else}}starting{{end}}' timesketch-web 2>/dev/null || echo "checking")
+    if [ "$HEALTH_STATUS" = "running" ]; then
       echo ".OK"
       break
     fi
