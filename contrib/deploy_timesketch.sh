@@ -17,11 +17,15 @@ set -e
 
 START_CONTAINER=
 SKIP_CREATE_USER=
+USER_NAME=
+USER_PASSWORD=
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --start-container) START_CONTAINER=yes ;;
         --skip-create-user) SKIP_CREATE_USER=yes ;;
+        --user-name) USER_NAME="$2"; shift ;;
+        --user-password) USER_PASSWORD="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
@@ -81,7 +85,7 @@ OPENSEARCH_PORT=9200
 OPENSEARCH_MEM_USE_GB=$(cat /proc/meminfo | grep MemTotal | awk '{printf "%.0f", ($2 / (1024 * 1024) / 2)}')
 REDIS_ADDRESS="redis"
 REDIS_PORT=6379
-GITHUB_BASE_URL="https://raw.githubusercontent.com/google/timesketch/master"
+GITHUB_BASE_URL="https://raw.githubusercontent.com/tmoney-coder/timesketch/master"
 echo "OK"
 echo "* Setting OpenSearch memory allocation to ${OPENSEARCH_MEM_USE_GB}GB"
 
@@ -146,7 +150,7 @@ if [ "$START_CONTAINER" != "${START_CONTAINER#[Yy]}" ] ;then # this grammar (the
   echo "* Starting Timesketch containers..."
   docker compose up -d
   echo -n "* Waiting for Timesketch web interface to become healthy.."
-  TIMEOUT=300 # 5 minutes timeout
+  TIMEOUT=600 # 10 minutes timeout
   SECONDS=0
   while true; do
     # Suppress errors in case container is not yet created or health check not configured
@@ -159,7 +163,6 @@ if [ "$START_CONTAINER" != "${START_CONTAINER#[Yy]}" ] ;then # this grammar (the
       echo ".FAIL"
       echo "ERROR: Timesketch web container did not become healthy after $TIMEOUT seconds."
       echo "Please check the container logs: docker logs timesketch-web"
-      exit 1
     fi
     echo -n "."
     sleep 5
@@ -193,18 +196,23 @@ else
   exit
 fi
 
-if [ -z "$SKIP_CREATE_USER" ]; then
+if [ -n "$USER_NAME" ] && [ -n "$USER_PASSWORD" ]; then
+  echo "Creating user: $USER_NAME"
+  until [ "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}starting{{end}}' timesketch-web)" = "healthy" ]; do
+      sleep 1;
+  done;
+  docker compose exec timesketch-web tsctl add-user -u "$USER_NAME" -p "$USER_PASSWORD" && echo "user created"
+elif [ -z "$SKIP_CREATE_USER" ]; then
   read -p "Would you like to create a new timesketch user? [y/N]" CREATE_USER
-fi
+  if [ "$CREATE_USER" != "${CREATE_USER#[Yy]}" ] ;then
+    read -p "Please provide a new username: " NEWUSERNAME
 
-if [ "$CREATE_USER" != "${CREATE_USER#[Yy]}" ] ;then
-  read -p "Please provide a new username: " NEWUSERNAME
+    if [ ! -z "$NEWUSERNAME" ] ;then
+      until [ "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}starting{{end}}' timesketch-web)" = "healthy" ]; do
+          sleep 1;
+      done;
 
-  if [ ! -z "$NEWUSERNAME" ] ;then
-    until [ "$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}starting{{end}}' timesketch-web)" = "healthy" ]; do
-        sleep 1;
-    done;
-
-    docker compose exec timesketch-web tsctl create-user "$NEWUSERNAME" && echo "user created"
+      docker compose exec timesketch-web tsctl create-user "$NEWUSERNAME" && echo "user created"
+    fi
   fi
 fi
